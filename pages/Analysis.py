@@ -17,17 +17,11 @@ def run_query(conn, query):
 
 def compare_two_tables(conn,
                        table1, table2,
-                       group_col,         # e.g. 'rdsurf' or 'ACCTYPE'
+                       group_col,         # e.g. 'CrashRate'
                        colname1, colname2):
     """
-    Runs a simple group-by query on table1 and table2 using `group_col`,
+    Runs a group-by query on table1 and table2 using `group_col`,
     merges them side-by-side in one DataFrame, then returns that DataFrame.
-
-    Example usage:
-    compare_two_tables(conn,
-                       "WetRoad", "DryRoad",
-                       group_col="rdsurf",
-                       colname1="Collisions_Wet", colname2="Collisions_Dry")
     """
     q1 = f"SELECT {group_col}, COUNT(*) AS {colname1} FROM {table1} GROUP BY {group_col}"
     q2 = f"SELECT {group_col}, COUNT(*) AS {colname2} FROM {table2} GROUP BY {group_col}"
@@ -35,7 +29,7 @@ def compare_two_tables(conn,
     df1 = run_query(conn, q1).set_index(group_col)
     df2 = run_query(conn, q2).set_index(group_col)
 
-    # Join on the index = the grouping column (e.g., rdsurf or ACCTYPE)
+    # Join on the index = the grouping column (e.g., CrashRate)
     df_combined = df1.join(df2, how="outer")
     return df_combined
 
@@ -66,7 +60,7 @@ def main():
     # --------------------------------------
     st.subheader("Compare WetRoad vs DryRoad by `rdsurf`")
     st.write(
-        "This button retrieves data from **WetRoad** and **DryRoad**, groups by `rdsurf`, "
+        "Retrieves data from **WetRoad** and **DryRoad**, grouped by `rdsurf`, "
         "and displays side-by-side bar charts."
     )
     if st.button("Show Wet vs Dry Comparison"):
@@ -81,8 +75,6 @@ def main():
                     colname1="Collisions_Wet", 
                     colname2="Collisions_Dry"
                 )
-
-                # st.dataframe(df_wet_dry)  # Uncomment to see raw numbers
                 st.bar_chart(df_wet_dry)
             except Exception as e:
                 st.error(f"Error comparing WetRoad vs DryRoad: {e}")
@@ -92,14 +84,14 @@ def main():
     st.markdown("---")
 
     # --------------------------------------
-    # 3. Compare AndYounger vs AndOlder (by ACCTYPE)
+    # 3. Compare AndYounger vs AndOlder (by CrashRate)
     # --------------------------------------
-    st.subheader("Compare AndYounger vs AndOlder by `ACCTYPE`")
+    st.subheader("Compare AndYounger vs AndOlder by `CrashRate`")
     st.write(
-        "This button retrieves data from **AndYounger** and **AndOlder**, groups by `ACCTYPE`, "
+        "Retrieves data from **AndYounger** and **AndOlder**, grouped by `CrashRate`, "
         "and displays side-by-side bar charts."
     )
-    if st.button("Show Younger vs Older Comparison"):
+    if st.button("Show Younger vs Older by CrashRate"):
         if "conn" in st.session_state:
             conn = st.session_state["conn"]
             try:
@@ -107,22 +99,20 @@ def main():
                     conn,
                     table1="AndYounger",
                     table2="AndOlder",
-                    group_col="ACCTYPE",        # Group by ACCTYPE
+                    group_col="CrashRate",  # Group by CrashRate
                     colname1="Collisions_Younger",
                     colname2="Collisions_Older"
                 )
-
-                # st.dataframe(df_young_old)  # Uncomment to see raw numbers
                 st.bar_chart(df_young_old)
             except Exception as e:
-                st.error(f"Error comparing AndYounger vs AndOlder: {e}")
+                st.error(f"Error comparing AndYounger vs AndOlder by CrashRate: {e}")
         else:
             st.warning("Connect to the database first.")
 
     st.markdown("---")
 
     # --------------------------------------
-    # 4. Additional context or content
+    # 4. Additional content (optional)
     # --------------------------------------
     st.subheader("Hypotheses")
     st.markdown(
@@ -134,10 +124,7 @@ def main():
     )
 
     st.subheader("Exploratory Data Analysis")
-    st.write(
-        "We might visualize collisions by road condition, driver age, etc. "
-        "Here, we specifically show how rdsurf differs between Wet/Dry tables and how ACCTYPE differs between Younger/Older."
-    )
+    st.write("Here, we visualize collisions by road condition or crash rate across different tables.")
 
 if __name__ == "__main__":
     main()
