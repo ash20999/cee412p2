@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import pymssql
 
-# Cache the DB connection so it doesn't reconnect on every widget update
 @st.cache_resource
 def init_connection(server, user, password, database):
     """Initialize and return a pymssql connection."""
@@ -24,7 +23,6 @@ def main():
     # ------------------------------------------------------------
     st.subheader("Enter Database Credentials")
 
-    # Provide defaults or placeholders
     username = st.text_input("Enter username:", value="WI25_ash209")
     password = st.text_input("Enter a password:", type="password", value="Aarshpatel0101")
     database = st.text_input("Enter your SQL Server database:", value="WI25_T10")
@@ -45,9 +43,19 @@ def main():
     # 2. Table Selection
     # ------------------------------------------------------------
     st.subheader("Choose a Table to Query")
+    # Added four new table entries: AndYounger, AndOlder, Wetroad, DryRoad
     table = st.selectbox(
         "Which table would you like to connect to?",
-        ("wa17acc", "wa17rdsurf", "wa17rdsurf_ur", "wa17county")
+        (
+            "wa17acc",
+            "wa17rdsurf",
+            "wa17rdsurf_ur",
+            "wa17county",
+            "AndYounger",
+            "AndOlder",
+            "Wetroad",
+            "DryRoad"
+        )
     )
 
     # ------------------------------------------------------------
@@ -74,9 +82,11 @@ def main():
 
     st.write(
         """
-        Below, we run a query to group collisions by `Road_Condition` and 
+        Below, we run a query to group collisions by `rdsurf` and 
         display them in a bar chart. The underlying data is retrieved in the background 
         and **not** displayed as a DataFrame.
+        
+        NOTE: The table must have a column called `rdsurf` for this to work.
         """
     )
 
@@ -84,23 +94,22 @@ def main():
         if "conn" in st.session_state:
             conn = st.session_state["conn"]
             try:
-                # Example query that groups by a "Road_Condition" column
+                # Query grouping by rdsurf
                 query = f"""
-                SELECT Road_Condition, COUNT(*) AS Collisions
+                SELECT rdsurf, COUNT(*) AS Collisions
                 FROM {table}
-                GROUP BY Road_Condition
+                GROUP BY rdsurf
                 """
                 df_chart = run_query(conn, query)
 
-                # If the table doesn't have "Road_Condition", this will fail.
-                # Adjust the column name(s) if needed.
-                df_chart = df_chart.set_index("Road_Condition")
+                # Setting the index to rdsurf
+                df_chart = df_chart.set_index("rdsurf")
                 st.bar_chart(df_chart["Collisions"])
 
             except Exception as e:
                 st.error(
                     "Could not display bar chart for the selected table. "
-                    f"Check if 'Road_Condition' exists in {table}.\n\nError: {e}"
+                    f"Check if 'rdsurf' exists in {table}.\n\nError: {e}"
                 )
         else:
             st.warning("You need to connect to the database first.")
@@ -127,13 +136,12 @@ def main():
         to assess our hypotheses. Example approach:
         
         ```sql
-        SELECT Road_Condition, COUNT(*) AS Collision_Count
-        FROM Accident
-        WHERE ACCTYPE IN ('06','16','13','14','73','74','83','84')
-        GROUP BY Road_Condition
+        SELECT rdsurf, COUNT(*) AS Collision_Count
+        FROM wa17rdsurf
+        GROUP BY rdsurf
         ORDER BY Collision_Count DESC;
         ```
-        Based on these queries, we observed that **wet conditions** indeed show a higher
+        Based on these queries, we observed that **wet conditions** (rdsurf='WET') indeed show a higher
         proportion of rear-end collisions than dry conditions, supporting Hypothesis 1.
         """
     )
