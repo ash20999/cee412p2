@@ -2,20 +2,14 @@ import streamlit as st
 import pandas as pd
 import pymssql
 
-# Cache the DB connection to avoid reconnecting on every widget update
+# Cache the DB connection so it doesn't reconnect on every widget update
 @st.cache_resource
 def init_connection(server, user, password, database):
-    """
-    Initialize and return a pymssql connection.
-    """
-    conn = pymssql.connect(server, user, password, database)
-    return conn
+    """Initialize and return a pymssql connection."""
+    return pymssql.connect(server, user, password, database)
 
 def run_query(conn, query):
-    """
-    Executes a query using an existing pymssql connection,
-    and returns the result in a pandas DataFrame.
-    """
+    """Execute a query on an existing pymssql connection, return a DataFrame."""
     with conn.cursor() as cursor:
         cursor.execute(query)
         data = cursor.fetchall()
@@ -30,11 +24,11 @@ def main():
     # ------------------------------------------------------------
     st.subheader("Enter Database Credentials")
 
-    # Default values set to your credentials
+    # Provide defaults or placeholders
     username = st.text_input("Enter username:", value="WI25_ash209")
     password = st.text_input("Enter a password:", type="password", value="Aarshpatel0101")
     database = st.text_input("Enter your SQL Server database:", value="WI25_T10")
-    server = "128.95.29.66"  # Hard-coded
+    server = "128.95.29.66"  # Hard-coded; change if needed
 
     # Button to initialize the connection
     if st.button("Connect to DB"):
@@ -48,7 +42,7 @@ def main():
             st.warning("Please enter username, password, and database name.")
 
     # ------------------------------------------------------------
-    # 2. Table Selection + Sample Query
+    # 2. Table Selection
     # ------------------------------------------------------------
     st.subheader("Choose a Table to Query")
     table = st.selectbox(
@@ -56,16 +50,58 @@ def main():
         ("wa17acc", "wa17rdsurf", "wa17rdsurf_ur", "wa17county")
     )
 
+    # ------------------------------------------------------------
+    # 2A. Optional: Preview the table
+    # ------------------------------------------------------------
     if st.button("Preview Table (First 10 Rows)"):
-        # Check if a connection is in st.session_state
         if "conn" in st.session_state:
             conn = st.session_state["conn"]
             try:
                 query = f"SELECT TOP 10 * FROM {table}"
                 df = run_query(conn, query)
+                st.write(f"Showing first 10 rows from **{table}**:")
                 st.dataframe(df)
             except Exception as e:
                 st.error(f"Query failed: {e}")
+        else:
+            st.warning("You need to connect to the database first.")
+
+    # ------------------------------------------------------------
+    # 2B. Display a Bar Chart (Pull data in the background)
+    # ------------------------------------------------------------
+    st.markdown("---")
+    st.subheader("Bar Chart Example")
+
+    st.write(
+        """
+        Below, we run a query to group collisions by `Road_Condition` and 
+        display them in a bar chart. The underlying data is retrieved in the background 
+        and **not** displayed as a DataFrame.
+        """
+    )
+
+    if st.button("Show Bar Chart"):
+        if "conn" in st.session_state:
+            conn = st.session_state["conn"]
+            try:
+                # Example query that groups by a "Road_Condition" column
+                query = f"""
+                SELECT Road_Condition, COUNT(*) AS Collisions
+                FROM {table}
+                GROUP BY Road_Condition
+                """
+                df_chart = run_query(conn, query)
+
+                # If the table doesn't have "Road_Condition", this will fail.
+                # Adjust the column name(s) if needed.
+                df_chart = df_chart.set_index("Road_Condition")
+                st.bar_chart(df_chart["Collisions"])
+
+            except Exception as e:
+                st.error(
+                    "Could not display bar chart for the selected table. "
+                    f"Check if 'Road_Condition' exists in {table}.\n\nError: {e}"
+                )
         else:
             st.warning("You need to connect to the database first.")
 
@@ -77,21 +113,12 @@ def main():
         """
         1. **Wet road surfaces lead to more rear-end collisions**  
         2. **Higher speed limits correlate with increased accident severity**  
-        3. **Freeways with higher AADT experience more frequent rear-end collisions**  
-        4. **Younger drivers (under 25) are more likely to be involved**  
-        5. **Newer vehicles (under 10 years old) are less likely to crash**
+        3. **Younger drivers (under 25) are more likely to be involved**
         """
     )
 
     st.subheader("Exploratory Data Analysis")
     st.write("Here, we might visualize collisions by road condition, driver age, etc.")
-
-    # Example bar chart (commented out)
-    # sample_data = pd.DataFrame({
-    #     "Condition": ["Dry", "Wet", "Snow", "Other"],
-    #     "Count": [100, 60, 15, 10]
-    # })
-    # st.bar_chart(sample_data.set_index("Condition"))
 
     st.subheader("Statistical Tests & Queries")
     st.markdown(
